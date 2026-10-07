@@ -28,8 +28,11 @@ class MathDisplay extends H5P.EventDispatcher {
     /*
      * MathJax boots the speech worker from a blob so the paths handed to MathJax need to be absolute.
      */
-    const distPath = new URL(`${this.libraryPath}/dist`, document.baseURI).href;
-    window.MathJax = getMathJaxConfig(distPath);
+    // Don't overwrite the config once MathJax has been requested.
+    if (!window.H5PMathDisplayMathJaxRequested) {
+      const distPath = new URL(`${this.libraryPath}/dist`, document.baseURI).href;
+      window.MathJax = getMathJaxConfig(distPath);
+    }
 
     // Get settings from host
     this.settings = H5P.getLibraryConfig('H5P.MathDisplay') || {};
@@ -63,6 +66,23 @@ class MathDisplay extends H5P.EventDispatcher {
     }
     
     const self = this;
+
+    // Load MathJax only once per page; reuse it in later instances.
+    if (window.H5PMathDisplayMathJaxRequested) {
+      const startWhenReady = () => {
+        if (window.MathJax && window.MathJax.startup && window.MathJax.startup.document) {
+          self.mathjax = window.MathJax;
+          self.startMutationObserver();
+        }
+        else {
+          setTimeout(startWhenReady, 40);
+        }
+      };
+      startWhenReady();
+      return;
+    }
+    window.H5PMathDisplayMathJaxRequested = true;
+
     const originalPageReady = MathJax.startup.pageReady;
       MathJax.startup.pageReady = function () {
         originalPageReady.apply(this, arguments);
