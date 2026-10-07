@@ -67,29 +67,25 @@ class MathDisplay extends H5P.EventDispatcher {
     
     const self = this;
 
-    // Load MathJax only once per page; reuse it in later instances.
+    // Reuse the engine if another instance already started it.
+    if (window.MathJax?.startup?.document) {
+      self.mathjax = window.MathJax;
+      self.startMutationObserver();
+      return;
+    }
+
+    const originalPageReady = MathJax.startup.pageReady;
+    MathJax.startup.pageReady = function () {
+      originalPageReady.apply(this, arguments);
+      self.mathjax = MathJax;
+      self.startMutationObserver();
+    };
+
+    // Inject the MathJax script only once per page.
     if (window.H5PMathDisplayMathJaxRequested) {
-      const startWhenReady = () => {
-        if (window.MathJax && window.MathJax.startup && window.MathJax.startup.document) {
-          self.mathjax = window.MathJax;
-          self.startMutationObserver();
-        }
-        else {
-          setTimeout(startWhenReady, 40);
-        }
-      };
-      startWhenReady();
       return;
     }
     window.H5PMathDisplayMathJaxRequested = true;
-
-    const originalPageReady = MathJax.startup.pageReady;
-      MathJax.startup.pageReady = function () {
-        originalPageReady.apply(this, arguments);
-        self.mathjax = MathJax;
-        // Start observer once Mathjax is ready
-        self.startMutationObserver();
-    };
 
     // Add MathJax script to document
     const script = document.createElement('script');
